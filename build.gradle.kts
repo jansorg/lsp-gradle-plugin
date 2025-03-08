@@ -45,6 +45,7 @@ gradlePlugin {
             displayName = "LSP Gradle Plugin for the dev.j-a.ide namespace"
             description = "Gradle plugin to help relocate the LSP library for JetBrains plugins."
             implementationClass = "dev.j_a.ide.lsp_gradle_plugin.LanguageServerGradlePlugin"
+            tags.addAll("lsp", "jetbrains")
         }
     }
 }
