@@ -21,7 +21,7 @@ import javax.inject.Inject
  * Extends the ShadowJar task to relocate classes of the dev.j-a.ide LSP and DAP libraries to a different package.
  */
 @CacheableTask
-abstract class RelocateLanguageServerPackageTasks() : ShadowJar() {
+abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
     @get:Inject
     protected abstract val archiveOperations: ArchiveOperations
 

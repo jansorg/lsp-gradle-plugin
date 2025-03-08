@@ -64,8 +64,8 @@ class LanguageServerGradlePlugin : Plugin<Project> {
         )
 
         val relocateLibraryClassesTask = project.tasks.register(
-            "composedJarShadowed",
-            RelocateLanguageServerPackageTasks::class.java
+            COMPOSED_JAR_SHADOWED_TASK,
+            RelocateLanguageServerPackageTask::class.java
         ) { task ->
             task.group = "lsp library"
             task.dependsOn(pluginComposedJarTaskProvider)
