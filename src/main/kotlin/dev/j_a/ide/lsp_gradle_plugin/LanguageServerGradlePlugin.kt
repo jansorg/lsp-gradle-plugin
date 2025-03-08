@@ -2,6 +2,7 @@ package dev.j_a.ide.lsp_gradle_plugin
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ExcludeRule
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ResolvedDependency
@@ -47,16 +48,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // Collect all LSP libraries into configuration lspLibraryConfiguration.
         project.afterEvaluate {
-            project.configurations.getByName("runtimeClasspath") { configuration ->
-                project.logger.warn("Configuration `${configuration.name} of ${project.name}")
-                configuration.resolvedConfiguration.firstLevelModuleDependencies
-                    .flatMap { it.allDependencies() }
-                    .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
-                    .forEach {
-                        project.logger.warn("!! ${it.name} with ${it.configuration}")
-                        lspLibraryConfiguration.dependencies.add(project.dependencies.create(it.name))
-                    }
-            }
+            it.collectLspLibraryDependencies(lspLibraryConfiguration)
         }
 
         // Add all LSP library dependencies to the composed plugin JAR
@@ -87,6 +79,20 @@ class LanguageServerGradlePlugin : Plugin<Project> {
         prepareJarSearchableOptionsTaskProvider.configure { task ->
             task.dependsOn(relocateLibraryClassesTask)
             task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+        }
+    }
+
+    /**
+     * Collects all production dependencies of the LSP library into [targetConfiguration].
+     */
+    private fun Project.collectLspLibraryDependencies(targetConfiguration: Configuration) {
+        configurations.getByName("runtimeClasspath") { runtimeClasspath ->
+            runtimeClasspath.resolvedConfiguration.firstLevelModuleDependencies
+                .flatMap { it.allDependencies() }
+                .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
+                .forEach {
+                    runtimeClasspath.dependencies.add(dependencies.create(it.name))
+                }
         }
     }
 
