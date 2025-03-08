@@ -1,0 +1,90 @@
+package dev.j_a.ide.lsp_gradle_plugin
+
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.api.artifacts.ResolvedDependency
+import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+
+/**
+ * Gradle plugin which relocates the LSP classes to a different package.
+ */
+@Suppress("unused")
+class LanguageServerGradlePlugin : Plugin<Project> {
+    /**
+     * We need to relocate classes in the JAR used by "runIde", "buildPlugin", etc.
+     * Task "composedJar" provides the default JAR, we take it,
+     * relocate the LSP classes and then configure tasks using it to take the relocated JAR instead.
+     */
+    override fun apply(project: Project) {
+        // The IntelliJ Platform Gradle plugin must be applied to the project
+        if (!project.plugins.hasPlugin("org.jetbrains.intellij.platform")) {
+            throw IllegalStateException("You must apply org.jetbrains.intellij.platform to use the LSP Gradle plugin")
+        }
+
+        val extension = project.extensions.create("shadowLSP", LanguageServerGradleExtension::class.java)
+        extension.archiveClassifier.convention("shadowed")
+
+        val pluginComposedJarTaskProvider = project.tasks.named("composedJar", ComposedJarTask::class.java)
+        val prepareJarSearchableOptionsTaskProvider = project.tasks.named(
+            "prepareJarSearchableOptions",
+            PrepareJarSearchableOptionsTask::class.java
+        )
+        val prepareSandboxTaskProvider = project.tasks.named("prepareSandbox", PrepareSandboxTask::class.java)
+
+        val lspLibraryConfiguration = project.configurations.create("dev.j_a.libraries") { c ->
+            c.isTransitive = false
+            c.exclude(mapOf("group" to "org.jetbrains.kotlin"))
+            c.exclude(mapOf("group" to "com.google.code.gson"))
+        }
+
+        // Collect all LSP libraries into configuration lspLibraryConfiguration.
+        project.afterEvaluate {
+            project.configurations
+                .filter { it.isCanBeResolved && it != lspLibraryConfiguration }
+                .forEach { configuration ->
+                    configuration.resolvedConfiguration.firstLevelModuleDependencies
+                        .flatMap { it.allDependencies() }
+                        .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
+                        .forEach { lspLibraryConfiguration.dependencies.add(project.dependencies.create(it.name)) }
+                }
+        }
+
+        // Add all LSP library dependencies to the composed plugin JAR
+        project.dependencies.add(
+            "intellijPlatformPluginModule",
+            project.dependencies.create(lspLibraryConfiguration)
+        )
+
+        val relocateLibraryClassesTask = project.tasks.register(
+            "composedJarShadowed",
+            RelocateLanguageServerPackageTasks::class.java
+        ) { task ->
+            task.group = "lsp library"
+            task.dependsOn(pluginComposedJarTaskProvider)
+
+            task.packagePrefix.set(extension.packagePrefix)
+            task.archiveClassifier.set(extension.archiveClassifier)
+            task.composedPluginJar.set(pluginComposedJarTaskProvider.flatMap(ComposedJarTask::getArchiveFile))
+        }
+
+        // update task "prepareSandbox" to use the JAR with the relocated LSP classes
+        prepareSandboxTaskProvider.configure { task ->
+            task.dependsOn(relocateLibraryClassesTask)
+            task.pluginJar.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+        }
+
+        // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
+        prepareJarSearchableOptionsTaskProvider.configure { task ->
+            task.dependsOn(relocateLibraryClassesTask)
+            task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+        }
+    }
+
+    private fun ResolvedDependency.allDependencies(target: MutableSet<ResolvedDependency> = mutableSetOf()): Set<ResolvedDependency> {
+        target += this
+        children.forEach { it.allDependencies(target) }
+        return target
+    }
+}

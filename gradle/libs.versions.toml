@@ -1,0 +1,6 @@
+[libraries]
+gradleup-shadow = "com.gradleup.shadow:shadow-gradle-plugin:9.0.0-beta10"
+intellij-platform = "org.jetbrains.intellij.platform:org.jetbrains.intellij.platform.gradle.plugin:2.3.0"
+
+# same as in https://github.com/GradleUp/shadow/blob/main/gradle/libs.versions.toml
+apache-ant = "org.apache.ant:ant:1.10.15"
