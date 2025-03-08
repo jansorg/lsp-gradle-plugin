@@ -2,7 +2,10 @@ package dev.j_a.ide.lsp_gradle_plugin
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ExcludeRule
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ResolvedDependency
+import org.jetbrains.intellij.platform.gradle.Constants
 import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
@@ -18,20 +21,23 @@ class LanguageServerGradlePlugin : Plugin<Project> {
      * relocate the LSP classes and then configure tasks using it to take the relocated JAR instead.
      */
     override fun apply(project: Project) {
-        // The IntelliJ Platform Gradle plugin must be applied to the project
+        // The IntelliJ Platform Gradle plugin must be applied to the project, we depend on several of its tasks
         if (!project.plugins.hasPlugin("org.jetbrains.intellij.platform")) {
             throw IllegalStateException("You must apply org.jetbrains.intellij.platform to use the LSP Gradle plugin")
         }
 
+        // add exclusions for kotlin-stdlib and gson in all projects
+        project.rootProject.allprojects { it.configureLspLibraryExclusions() }
+
         val extension = project.extensions.create("shadowLSP", LanguageServerGradleExtension::class.java)
         extension.archiveClassifier.convention("shadowed")
 
-        val pluginComposedJarTaskProvider = project.tasks.named("composedJar", ComposedJarTask::class.java)
+        val pluginComposedJarTaskProvider = project.tasks.named(Constants.Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
+        val prepareSandboxTaskProvider = project.tasks.named(Constants.Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java)
         val prepareJarSearchableOptionsTaskProvider = project.tasks.named(
-            "prepareJarSearchableOptions",
+            Constants.Tasks.PREPARE_JAR_SEARCHABLE_OPTIONS,
             PrepareJarSearchableOptionsTask::class.java
         )
-        val prepareSandboxTaskProvider = project.tasks.named("prepareSandbox", PrepareSandboxTask::class.java)
 
         val lspLibraryConfiguration = project.configurations.create("dev.j_a.libraries") { c ->
             c.isTransitive = false
@@ -53,7 +59,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // Add all LSP library dependencies to the composed plugin JAR
         project.dependencies.add(
-            "intellijPlatformPluginModule",
+            Constants.Configurations.INTELLIJ_PLATFORM_PLUGIN_MODULE,
             project.dependencies.create(lspLibraryConfiguration)
         )
 
@@ -82,9 +88,28 @@ class LanguageServerGradlePlugin : Plugin<Project> {
         }
     }
 
-    private fun ResolvedDependency.allDependencies(target: MutableSet<ResolvedDependency> = mutableSetOf()): Set<ResolvedDependency> {
-        target += this
-        children.forEach { it.allDependencies(target) }
-        return target
+    /**
+     * The LSP libraries use kotlin-stdlib and gson in the same version as the IDE's major version.
+     * These dependencies need to be excluded.
+     */
+    private fun Project.configureLspLibraryExclusions() {
+        project.afterEvaluate {
+            for (configuration in configurations) {
+                for (dependency in configuration.dependencies) {
+                    if (dependency is ModuleDependency && dependency.group == LSP_GRADLE_MODULE_GROUP) {
+                        logger.info("Adding exclusions in project ${project.name} for kotlin-stdlib and gson to LSP library dependency $dependency")
+
+                        dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
+                        dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
+                    }
+                }
+            }
+        }
     }
+}
+
+private fun ResolvedDependency.allDependencies(target: MutableSet<ResolvedDependency> = mutableSetOf()): Set<ResolvedDependency> {
+    target += this
+    children.forEach { it.allDependencies(target) }
+    return target
 }

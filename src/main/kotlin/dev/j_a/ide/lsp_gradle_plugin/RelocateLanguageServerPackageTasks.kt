@@ -12,6 +12,8 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
 
@@ -24,6 +26,7 @@ abstract class RelocateLanguageServerPackageTasks() : ShadowJar() {
     protected abstract val archiveOperations: ArchiveOperations
 
     @get:InputFile
+    @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val composedPluginJar: RegularFileProperty
 
     @get:Input
