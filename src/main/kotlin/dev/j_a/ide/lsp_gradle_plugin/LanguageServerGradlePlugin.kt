@@ -47,14 +47,16 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // Collect all LSP libraries into configuration lspLibraryConfiguration.
         project.afterEvaluate {
-            project.configurations
-                .filter { it.isCanBeResolved && it != lspLibraryConfiguration }
-                .forEach { configuration ->
-                    configuration.resolvedConfiguration.firstLevelModuleDependencies
-                        .flatMap { it.allDependencies() }
-                        .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
-                        .forEach { lspLibraryConfiguration.dependencies.add(project.dependencies.create(it.name)) }
-                }
+            project.configurations.getByName("runtimeClasspath") { configuration ->
+                project.logger.warn("Configuration `${configuration.name} of ${project.name}")
+                configuration.resolvedConfiguration.firstLevelModuleDependencies
+                    .flatMap { it.allDependencies() }
+                    .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
+                    .forEach {
+                        project.logger.warn("!! ${it.name} with ${it.configuration}")
+                        lspLibraryConfiguration.dependencies.add(project.dependencies.create(it.name))
+                    }
+            }
         }
 
         // Add all LSP library dependencies to the composed plugin JAR
