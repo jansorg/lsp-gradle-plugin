@@ -45,7 +45,7 @@ abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
         transform(UpdatePluginXmlTransformer())
         from(composedPluginJar.map { archiveOperations.zipTree(it) })
 
-        println("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix")
+        logger.info("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix")
         super.copy()
     }
 
