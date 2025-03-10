@@ -91,7 +91,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
                 .flatMap { it.allDependencies() }
                 .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
                 .forEach {
-                    runtimeClasspath.dependencies.add(dependencies.create(it.name))
+                    targetConfiguration.dependencies.add(dependencies.create(it.name))
                 }
         }
     }
