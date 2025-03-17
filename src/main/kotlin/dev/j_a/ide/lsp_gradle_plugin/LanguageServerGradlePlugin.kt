@@ -61,11 +61,12 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             COMPOSED_JAR_SHADOWED_TASK,
             RelocateLanguageServerPackageTask::class.java
         ) { task ->
-            task.group = "lsp library"
+            task.group = "LSP library"
             task.dependsOn(pluginComposedJarTaskProvider)
 
             task.packagePrefix.set(extension.packagePrefix)
             task.archiveClassifier.set(extension.archiveClassifier)
+            task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
             task.composedPluginJar.set(pluginComposedJarTaskProvider.flatMap(ComposedJarTask::getArchiveFile))
         }
 

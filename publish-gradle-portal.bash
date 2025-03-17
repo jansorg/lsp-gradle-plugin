@@ -5,4 +5,4 @@ if grep -q -E '\-SNAPSHOT' ./gradle.properties 2>&1; then
   exit 1
 fi
 
-./gradlew publishPlugins
+./gradlew -PpluginVersionSuffix="" publishPlugins

@@ -13,18 +13,22 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.3.0"
 
     // Apply the LSP Gradle plugin to your project
-    id("dev.j-a.ide.lsp") version "0.3.0-SNAPSHOT"
+    id("dev.j-a.ide.lsp") version "0.3.2"
 }
 
 project(":") {
     shadowLSP {
         // Parent package for the relocated classes of the LSP library
         packagePrefix = "com.example.my_plugin.lsp_support"
+
+        // IDs of languages used by the LSP server.
+        // This enables features, which are configured with a IntelliJ language ID.
+        enabledLanguageIds = setOf()
     }
 
     dependencies {
         // 242 to you build against 2024.2
-        implementation("dev.j-a.ide:lsp-client:0.2.5.242")
+        implementation("dev.j-a.ide:lsp-client:0.2.9.242")
     }
 }
 ```

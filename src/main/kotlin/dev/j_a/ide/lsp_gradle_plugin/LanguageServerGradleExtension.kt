@@ -1,6 +1,7 @@
 package dev.j_a.ide.lsp_gradle_plugin
 
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 
@@ -26,4 +27,14 @@ interface LanguageServerGradleExtension {
     @get:Input
     @get:Optional
     val archiveClassifier: Property<String>
+
+    /**
+     * Language IDs, for which the optional LSP features should be enabled.
+     * The library's LSP and DAP XML files are patched with the enabled languages.
+     *
+     * If no language ID is specified, the optional LSP features are not enabled.
+     */
+    @get:Input
+    @get:Optional
+    val enabledLanguageIds: SetProperty<String>
 }

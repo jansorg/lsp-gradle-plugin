@@ -2,10 +2,12 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val javaVersion = 11
+val pluginVersion = project.ext["pluginVersion"] as String
+val pluginVersionSuffix = project.ext["pluginVersionSuffix"] as String
 
 group = "dev.j-a.ide"
 description = "Gradle plugin to help relocate the LSP library for JetBrains plugins"
-version = project.ext["pluginVersion"] as String
+version = "$pluginVersion$pluginVersionSuffix"
 
 plugins {
     `java-gradle-plugin`

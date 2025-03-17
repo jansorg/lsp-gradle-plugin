@@ -1,20 +1,11 @@
 package dev.j_a.ide.lsp_gradle_plugin
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.jengelman.gradle.plugins.shadow.transformers.ResourceTransformer
-import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
-import org.apache.tools.zip.ZipEntry
-import org.apache.tools.zip.ZipOutputStream
 import org.gradle.api.file.ArchiveOperations
-import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.CacheableTask
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.PathSensitive
-import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.*
 import javax.inject.Inject
 
 /**
@@ -32,6 +23,9 @@ abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
     @get:Input
     abstract val packagePrefix: Property<String>
 
+    @get:Input
+    abstract val enabledLanguageIds: SetProperty<String>
+
     @TaskAction
     override fun copy() {
         val packagePrefix = packagePrefix.get()
@@ -39,47 +33,15 @@ abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
             throw IllegalArgumentException("packagePrefix must be set to a non-empty value different from $LSP_PACKAGE_PREFIX")
         }
 
+        val enabledPsiLanguages = enabledLanguageIds.getOrElse(emptySet())
+
         // Change the target package to be inside your own plugin's package
         // For v2 descriptors, it must be inside the package specified by the 'package' attribute of <idea-plugin>
         relocate(LSP_PACKAGE_PREFIX, packagePrefix)
-        transform(UpdatePluginXmlTransformer())
+        transform(UpdatePluginXmlTransformer(enabledPsiLanguages, logger))
         from(composedPluginJar.map { archiveOperations.zipTree(it) })
 
-        logger.info("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix")
+        logger.info("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix, PSI languages: $enabledPsiLanguages")
         super.copy()
-    }
-
-    private class UpdatePluginXmlTransformer : ResourceTransformer {
-        private val transformedDescriptorResources = setOf(
-            "META-INF/plugin-lsp-client.xml",
-            "META-INF/plugin-dap-client.xml"
-        )
-
-        private val transformedResources = mutableMapOf<String, String>()
-
-        override fun canTransformResource(element: FileTreeElement): Boolean {
-            return element.path in transformedDescriptorResources
-        }
-
-        override fun hasTransformedResource(): Boolean {
-            return transformedResources.isNotEmpty()
-        }
-
-        override fun transform(context: TransformerContext) {
-            val initialXml = context.inputStream.readAllBytes().toString(Charsets.UTF_8)
-            val patchedXml = context.relocators.fold(initialXml) { xml, relocator ->
-                relocator.applyToSourceContent(xml)
-            }
-
-            transformedResources.put(context.path, patchedXml)
-        }
-
-        override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
-            transformedResources.forEach { key, value ->
-                os.putNextEntry(ZipEntry(key))
-                os.write(value.toByteArray(Charsets.UTF_8))
-                os.flush()
-            }
-        }
     }
 }
