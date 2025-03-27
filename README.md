@@ -2,6 +2,15 @@
 
 This is a Gradle plugin to simplify the use of the LSP client library for JetBrains IDEs.
 
+The LSP client at [j-a.dev/lsp-dap](https://www.j-a.dev/lsp-dap) is made for JetBrains IDEs.
+But because the client is provided as a library it must be bundled with a JetBrains plugin.
+Due to technical limitations of JetBrains IDEs, the library must not share the same package name with other plugins on the Marketplace.
+Therefore, the package of the LSP library must be relocated.
+
+This Gradle plugins helps with the relocation.
+It also simplifies the setup of additional features, which need a configured IDE language to be available.
+Please refer to [j-a.dev/lsp-dap](https://www.j-a.dev/lsp-dap) for details.
+
 ## How To Apply To a Gradle Project
 
 The plugin requires that the [IntelliJ Platform Gradle Plugin](https://github.com/JetBrains/intellij-platform-gradle-plugin)
@@ -9,8 +18,8 @@ is applied to your project.
 
 ```kotlin
 plugins {
-    // This must be present already. Version 2.3.0 is tested, earlier versions should work.
-    id("org.jetbrains.intellij.platform") version "2.3.0"
+    // This must be present already. Version 2.4.0 is tested, earlier versions should work.
+    id("org.jetbrains.intellij.platform") version "2.4.0"
 
     // Apply the LSP Gradle plugin to your project
     id("dev.j-a.ide.lsp") version "0.3.2"
@@ -28,7 +37,7 @@ project(":") {
 
     dependencies {
         // 242 to you build against 2024.2
-        implementation("dev.j-a.ide:lsp-client:0.2.9.242")
+        implementation("dev.j-a.ide:lsp-client:0.2.12.242")
     }
 }
 ```
