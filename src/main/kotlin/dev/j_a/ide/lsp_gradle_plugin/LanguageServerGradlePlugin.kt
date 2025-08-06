@@ -53,7 +53,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // Add all LSP library dependencies to the composed plugin JAR
         project.dependencies.add(
-            Constants.Configurations.INTELLIJ_PLATFORM_PLUGIN_MODULE,
+            Constants.Configurations.INTELLIJ_PLATFORM_PLUGIN_COMPOSED_MODULE,
             project.dependencies.create(lspLibraryConfiguration)
         )
 

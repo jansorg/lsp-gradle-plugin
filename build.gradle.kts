@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-val javaVersion = 11
+val javaVersion = 17
 val pluginVersion = project.ext["pluginVersion"] as String
 val pluginVersionSuffix = project.ext["pluginVersionSuffix"] as String
 
@@ -14,7 +14,7 @@ plugins {
     kotlin("jvm") version "2.1.0"
 
     id("com.gradle.plugin-publish") version "1.3.1"
-    id("com.gradleup.shadow") version "9.0.0-beta10"
+    id("com.gradleup.shadow") version "9.0.0-rc3"
 }
 
 repositories {

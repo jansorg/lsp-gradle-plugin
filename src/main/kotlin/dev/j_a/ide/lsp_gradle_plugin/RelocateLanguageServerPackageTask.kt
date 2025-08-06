@@ -1,21 +1,16 @@
 package dev.j_a.ide.lsp_gradle_plugin
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.file.ArchiveOperations
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
-import javax.inject.Inject
 
 /**
  * Extends the ShadowJar task to relocate classes of the dev.j-a.ide LSP and DAP libraries to a different package.
  */
 @CacheableTask
 abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
-    @get:Inject
-    protected abstract val archiveOperations: ArchiveOperations
-
     @get:InputFile
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val composedPluginJar: RegularFileProperty
