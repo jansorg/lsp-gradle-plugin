@@ -1,5 +1,5 @@
 [libraries]
-gradleup-shadow = "com.gradleup.shadow:shadow-gradle-plugin:9.0.0-rc3"
+gradleup-shadow = "com.gradleup.shadow:shadow-gradle-plugin:9.0.0"
 intellij-platform = "org.jetbrains.intellij.platform:org.jetbrains.intellij.platform.gradle.plugin:2.7.0"
 
 # same as in https://github.com/GradleUp/shadow/blob/main/gradle/libs.versions.toml
