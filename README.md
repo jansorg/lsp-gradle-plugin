@@ -37,7 +37,7 @@ project(":") {
 
     dependencies {
         // 243 to you build against 2024.3
-        implementation("dev.j-a.ide:lsp-client:0.3.3.243")
+        implementation("dev.j-a.ide:lsp-client:0.3.0.243")
     }
 }
 ```
