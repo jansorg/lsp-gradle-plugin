@@ -8,9 +8,9 @@ import org.gradle.api.file.FileTreeElement
 import org.gradle.api.logging.Logger
 
 /**
- * Transformer, which updates the LSP library's plugin.xml includes with the relocated classes.
+ * Transformer, which updates the LSP library's plugin.xml, includes with the relocated classes.
  *
- * Additionally, it adds snippets to the xml files to enable optional LSP and DAP features, which require a PSI langauge ID.
+ * Additionally, it adds snippets to the XML files to enable optional LSP and DAP features, which require a PSI language ID.
  */
 internal class UpdatePluginXmlTransformer(val enabledPsiLanguages: Set<String>, val logger: Logger) : ResourceTransformer {
     // XML plugin.xml to snippet file for per-language feature snippets
@@ -36,7 +36,7 @@ internal class UpdatePluginXmlTransformer(val enabledPsiLanguages: Set<String>, 
             relocator.applyToSourceContent(xml)
         }
 
-        transformedResources.put(context.path, patchedXml)
+        transformedResources[context.path] = patchedXml
     }
 
     override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
@@ -64,7 +64,7 @@ internal class UpdatePluginXmlTransformer(val enabledPsiLanguages: Set<String>, 
 
                     else -> it.value
                 }
-            }.forEach { key, value ->
+            }.forEach { (key, value) ->
                 os.putNextEntry(ZipEntry(key))
                 os.write(value.toByteArray(Charsets.UTF_8))
                 os.flush()
@@ -84,7 +84,7 @@ internal class UpdatePluginXmlTransformer(val enabledPsiLanguages: Set<String>, 
     private fun expandXmlSnippet(xmlContent: String): String {
         return buildString {
             for (languageId in enabledPsiLanguages) {
-                append(xmlContent.replace("\$LANGUAGE_ID\$", languageId).replaceIndent("    "))
+                append(xmlContent.replace("\$LANGUAGE_ID$", languageId).replaceIndent("    "))
                 append("\n")
             }
         }
