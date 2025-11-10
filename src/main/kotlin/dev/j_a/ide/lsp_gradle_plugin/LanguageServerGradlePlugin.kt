@@ -27,9 +27,6 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             throw IllegalStateException("You must apply org.jetbrains.intellij.platform to use the LSP Gradle plugin")
         }
 
-        // add exclusions for kotlin-stdlib and gson in all projects
-        project.rootProject.allprojects { it.configureLspLibraryExclusions() }
-
         val extension = project.extensions.create("shadowLSP", LanguageServerGradleExtension::class.java)
         extension.archiveClassifier.convention("shadowed")
 
@@ -48,7 +45,13 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // Collect all LSP libraries into configuration lspLibraryConfiguration.
         project.afterEvaluate {
+            it.configureLspLibraryExclusions()
             it.collectLspLibraryDependencies(lspLibraryConfiguration)
+        }
+        project.subprojects { subProject ->
+            subProject.afterEvaluate {
+                subProject.configureLspLibraryExclusions()
+            }
         }
 
         // Add all LSP library dependencies to the composed plugin JAR
@@ -102,15 +105,12 @@ class LanguageServerGradlePlugin : Plugin<Project> {
      * These dependencies need to be excluded.
      */
     private fun Project.configureLspLibraryExclusions() {
-        project.afterEvaluate {
-            for (configuration in configurations) {
-                for (dependency in configuration.dependencies) {
-                    if (dependency is ModuleDependency && dependency.group == LSP_GRADLE_MODULE_GROUP) {
-                        logger.info("Adding exclusions in project ${project.name} for kotlin-stdlib and gson to LSP library dependency $dependency")
-
-                        dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
-                        dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
-                    }
+        configurations.all { configuration ->
+            configuration.dependencies.filterIsInstance<ModuleDependency>().forEach { dependency ->
+                if (dependency.group == LSP_GRADLE_MODULE_GROUP) {
+                    logger.info("Adding exclusions in project ${project.name} for kotlin-stdlib and gson to LSP library dependency $dependency")
+                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
+                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
                 }
             }
         }
