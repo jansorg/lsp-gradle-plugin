@@ -18,11 +18,11 @@ is applied to your project.
 
 ```kotlin
 plugins {
-    // This must be present already. Version 2.7.0 is tested and is currently the required minimum version.
-    id("org.jetbrains.intellij.platform") version "2.7.0"
+    // This must be present already. Version 2.10.5 is tested and is currently the required minimum version.
+    id("org.jetbrains.intellij.platform") version "2.10.5"
 
     // Apply the LSP Gradle plugin to your project
-    id("dev.j-a.ide.lsp") version "0.3.3"
+    id("dev.j-a.ide.lsp") version "0.4.0"
 }
 
 project(":") {

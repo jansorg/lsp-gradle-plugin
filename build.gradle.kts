@@ -13,8 +13,10 @@ plugins {
     `java-gradle-plugin`
     kotlin("jvm") version "2.1.0"
 
-    id("com.gradle.plugin-publish") version "1.3.1"
-    id("com.gradleup.shadow") version "9.0.0"
+    // https://plugins.gradle.org/plugin/com.gradle.plugin-publish
+    id("com.gradle.plugin-publish") version "2.0.0"
+    // https://github.com/GradleUp/shadow
+    id("com.gradleup.shadow") version "9.2.2"
 }
 
 repositories {
