@@ -10,10 +10,13 @@ import org.gradle.api.tasks.*
  * Extends the ShadowJar task to relocate classes of the dev.j-a.ide LSP and DAP libraries to a different package.
  */
 @CacheableTask
-abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
+abstract class RelocateLanguageServerPackageTask : ShadowJar() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val composedPluginJar: RegularFileProperty
+
+    @get:Input
+    abstract val relocateLibraryPackages: Property<Boolean>
 
     @get:Input
     abstract val packagePrefix: Property<String>
@@ -32,7 +35,9 @@ abstract class RelocateLanguageServerPackageTask() : ShadowJar() {
 
         // Change the target package to be inside your own plugin's package
         // For v2 descriptors, it must be inside the package specified by the 'package' attribute of <idea-plugin>
-        relocate(LSP_PACKAGE_PREFIX, packagePrefix)
+        if (relocateLibraryPackages.get()) {
+            relocate(LSP_PACKAGE_PREFIX, packagePrefix)
+        }
         transform(UpdatePluginXmlTransformer(enabledPsiLanguages, logger))
         from(composedPluginJar.map { archiveOperations.zipTree(it) })
 

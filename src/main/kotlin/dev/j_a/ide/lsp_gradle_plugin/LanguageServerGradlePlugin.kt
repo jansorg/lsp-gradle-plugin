@@ -28,7 +28,10 @@ class LanguageServerGradlePlugin : Plugin<Project> {
         }
 
         val extension = project.extensions.create("shadowLSP", LanguageServerGradleExtension::class.java)
+        extension.enabled.convention(true)
+        extension.shadowLspLibraries.convention(true)
         extension.archiveClassifier.convention("shadowed")
+        extension.enabledLanguageIds.convention(emptySet())
 
         val pluginComposedJarTaskProvider = project.tasks.named(Constants.Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
         val prepareSandboxTaskProvider = project.tasks.named(Constants.Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java)
@@ -67,6 +70,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             task.group = "LSP library"
             task.dependsOn(pluginComposedJarTaskProvider)
 
+            task.relocateLibraryPackages.set(extension.shadowLspLibraries)
             task.packagePrefix.set(extension.packagePrefix)
             task.archiveClassifier.set(extension.archiveClassifier)
             task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
@@ -75,14 +79,18 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // update task "prepareSandbox" to use the JAR with the relocated LSP classes
         prepareSandboxTaskProvider.configure { task ->
-            task.dependsOn(relocateLibraryClassesTask)
-            task.pluginJar.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+            if (extension.enabled.get()) {
+                task.dependsOn(relocateLibraryClassesTask)
+                task.pluginJar.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+            }
         }
 
         // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
         prepareJarSearchableOptionsTaskProvider.configure { task ->
-            task.dependsOn(relocateLibraryClassesTask)
-            task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+            if (extension.enabled.get()) {
+                task.dependsOn(relocateLibraryClassesTask)
+                task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
+            }
         }
     }
 
