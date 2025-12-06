@@ -1,3 +1,7 @@
+## 0.5.0
+
+- Setting to configure relocating classes in the host plugin's XML descriptors, e.g. for LSP listeners.
+
 ## 0.4.1
 
 - New settings to turn off the plugin and the relocation of the LSP library.

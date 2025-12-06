@@ -45,4 +45,11 @@ interface LanguageServerGradleExtension {
     @get:Input
     @get:Optional
     val enabledLanguageIds: SetProperty<String>
+
+    /**
+     * Paths to the plugin.xml files or snippets, which may refer to dev.j-a.lsp classes and which have to be updated with the relocated LSP classes.
+     */
+    @get:Input
+    @get:Optional
+    val pluginXmlFiles: SetProperty<String>
 }

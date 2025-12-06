@@ -32,6 +32,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
         extension.shadowLspLibraries.convention(true)
         extension.archiveClassifier.convention("shadowed")
         extension.enabledLanguageIds.convention(emptySet())
+        extension.pluginXmlFiles.convention(emptySet())
 
         val pluginComposedJarTaskProvider = project.tasks.named(Constants.Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
         val prepareSandboxTaskProvider = project.tasks.named(Constants.Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java)
@@ -74,6 +75,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             task.packagePrefix.set(extension.packagePrefix)
             task.archiveClassifier.set(extension.archiveClassifier)
             task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
+            task.pluginXmlFiles.set(extension.pluginXmlFiles.getOrElse(emptySet()))
             task.composedPluginJar.set(pluginComposedJarTaskProvider.flatMap(ComposedJarTask::getArchiveFile))
         }
 

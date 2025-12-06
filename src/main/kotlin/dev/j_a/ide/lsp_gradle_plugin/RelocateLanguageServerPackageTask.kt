@@ -24,6 +24,9 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
     @get:Input
     abstract val enabledLanguageIds: SetProperty<String>
 
+    @get:Input
+    abstract val pluginXmlFiles: SetProperty<String>
+
     @TaskAction
     override fun copy() {
         val packagePrefix = packagePrefix.get()
@@ -39,6 +42,12 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
             relocate(LSP_PACKAGE_PREFIX, packagePrefix)
         }
         transform(UpdatePluginXmlTransformer(enabledPsiLanguages, logger))
+
+        val pluginXmlFiles = pluginXmlFiles.getOrElse(emptySet())
+        if (pluginXmlFiles.isNotEmpty()) {
+            transform(UpdateNamedPluginXmlTransformer(pluginXmlFiles, logger))
+        }
+
         from(composedPluginJar.map { archiveOperations.zipTree(it) })
 
         logger.info("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix, PSI languages: $enabledPsiLanguages")

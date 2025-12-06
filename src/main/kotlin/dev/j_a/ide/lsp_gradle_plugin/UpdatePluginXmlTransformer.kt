@@ -67,7 +67,7 @@ internal class UpdatePluginXmlTransformer(val enabledPsiLanguages: Set<String>, 
             }.forEach { (key, value) ->
                 os.putNextEntry(ZipEntry(key))
                 os.write(value.toByteArray(Charsets.UTF_8))
-                os.flush()
+                os.closeEntry()
             }
     }
 
