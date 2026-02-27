@@ -128,7 +128,9 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 }
 
 private fun ResolvedDependency.allDependencies(target: MutableSet<ResolvedDependency> = mutableSetOf()): Set<ResolvedDependency> {
-    target += this
-    children.forEach { it.allDependencies(target) }
+    if (this !in target) {
+        target += this
+        children.forEach { it.allDependencies(target) }
+    }
     return target
 }
