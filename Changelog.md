@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Fixed a StackOverflow exception.
+
 ## 0.5.0
 
 - Setting to configure relocating classes in the host plugin's XML descriptors, e.g. for LSP listeners.
