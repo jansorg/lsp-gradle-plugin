@@ -34,21 +34,21 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
             throw IllegalArgumentException("packagePrefix must be set to a non-empty value different from $LSP_PACKAGE_PREFIX")
         }
 
-        val enabledPsiLanguages = enabledLanguageIds.getOrElse(emptySet())
-
         // Change the target package to be inside your own plugin's package
         // For v2 descriptors, it must be inside the package specified by the 'package' attribute of <idea-plugin>
         if (relocateLibraryPackages.get()) {
             relocate(LSP_PACKAGE_PREFIX, packagePrefix)
         }
+
+        val enabledPsiLanguages = enabledLanguageIds.getOrElse(emptySet())
         transform(UpdatePluginXmlTransformer(enabledPsiLanguages, logger))
 
         val pluginXmlFiles = pluginXmlFiles.getOrElse(emptySet())
         if (pluginXmlFiles.isNotEmpty()) {
-            transform(UpdateNamedPluginXmlTransformer(pluginXmlFiles, logger))
+            transform(UpdateNamedPluginXmlTransformer(pluginXmlFiles))
         }
 
-        from(composedPluginJar.map { archiveOperations.zipTree(it) })
+        from(composedPluginJar.map { jarFile -> archiveOperations.zipTree(jarFile) })
 
         logger.info("Relocating LSP and DAP libraries in ${composedPluginJar.get()} into package $packagePrefix, PSI languages: $enabledPsiLanguages")
         super.copy()
