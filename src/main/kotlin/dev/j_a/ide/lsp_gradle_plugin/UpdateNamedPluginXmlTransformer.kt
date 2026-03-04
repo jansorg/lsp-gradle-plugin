@@ -5,12 +5,11 @@ import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContex
 import org.apache.tools.zip.ZipEntry
 import org.apache.tools.zip.ZipOutputStream
 import org.gradle.api.file.FileTreeElement
-import org.gradle.api.logging.Logger
 
 /**
  * Transformer, which updates the LSP library package to the relocated package in XML files given by name.
  */
-internal class UpdateNamedPluginXmlTransformer(val pluginXmlFiles: Set<String>, val logger: Logger) : ResourceTransformer {
+internal class UpdateNamedPluginXmlTransformer(val pluginXmlFiles: Set<String>) : ResourceTransformer {
     private val transformedResources = mutableMapOf<String, String>()
 
     override fun canTransformResource(element: FileTreeElement): Boolean {

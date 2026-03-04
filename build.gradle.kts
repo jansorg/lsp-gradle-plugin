@@ -16,7 +16,7 @@ plugins {
     // https://plugins.gradle.org/plugin/com.gradle.plugin-publish
     id("com.gradle.plugin-publish") version "2.0.0"
     // https://github.com/GradleUp/shadow
-    id("com.gradleup.shadow") version "9.2.2"
+    id("com.gradleup.shadow") version "9.3.2"
 }
 
 repositories {
