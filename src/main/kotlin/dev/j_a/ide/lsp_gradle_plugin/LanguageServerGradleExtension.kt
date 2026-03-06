@@ -9,14 +9,6 @@ import org.gradle.api.tasks.Optional
  * Configuration settings for the LSP Gradle plugin.
  */
 interface LanguageServerGradleExtension {
-    @get:Input
-    @get:Optional
-    val enabled: Property<Boolean>
-
-    @get:Input
-    @get:Optional
-    val shadowLspLibraries: Property<Boolean>
-
     /**
      * The parent package for the relocated classes.
      * The package must be inside your JetBrains plugin's top-level package.
@@ -26,6 +18,14 @@ interface LanguageServerGradleExtension {
      */
     @get:Input
     val packagePrefix: Property<String>
+
+    /**
+     * `true` if the LSP library package should be relocated to [packagePrefix].
+     * Default: `true`.
+     */
+    @get:Input
+    @get:Optional
+    val relocate: Property<Boolean>
 
     /**
      * The archive classifier of the JAR file with the relocated LSP library classes.
