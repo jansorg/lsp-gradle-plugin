@@ -1,3 +1,7 @@
+## 0.6.0
+
+- Reworked to help working with V2 plugin descriptors.
+
 ## 0.5.1
 
 - Fixed a StackOverflow exception.

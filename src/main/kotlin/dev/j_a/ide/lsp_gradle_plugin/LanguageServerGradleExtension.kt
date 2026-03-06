@@ -10,6 +10,27 @@ import org.gradle.api.tasks.Optional
  */
 interface LanguageServerGradleExtension {
     /**
+     * The platform version to resolve the LSP client library dependency.
+     */
+    @get:Input
+    val platform: Property<Int>
+
+    @get:Input
+    val version: Property<String>
+
+    @get:Input
+    @get:Optional
+    val addLibraryDependency: Property<Boolean>
+
+    @get:Input
+    @get:Optional
+    val addTestFrameworkDependency: Property<Boolean>
+
+    @get:Input
+    @get:Optional
+    val bundleLibrary: Property<Boolean>
+
+    /**
      * The parent package for the relocated classes.
      * The package must be inside your JetBrains plugin's top-level package.
      *
@@ -17,15 +38,8 @@ interface LanguageServerGradleExtension {
      * you could use `com.example.myplugin.lsp_support` as the package prefix.
      */
     @get:Input
-    val packagePrefix: Property<String>
-
-    /**
-     * `true` if the LSP library package should be relocated to [packagePrefix].
-     * Default: `true`.
-     */
-    @get:Input
     @get:Optional
-    val relocate: Property<Boolean>
+    val packagePrefix: Property<String>
 
     /**
      * The archive classifier of the JAR file with the relocated LSP library classes.
@@ -36,6 +50,10 @@ interface LanguageServerGradleExtension {
     @get:Optional
     val archiveClassifier: Property<String>
 
+    @get:Input
+    @get:Optional
+    val pluginModuleName: Property<String>
+
     /**
      * Language IDs, for which the optional LSP features should be enabled.
      * The library's LSP and DAP XML files are patched with the enabled languages.
@@ -45,11 +63,4 @@ interface LanguageServerGradleExtension {
     @get:Input
     @get:Optional
     val enabledLanguageIds: SetProperty<String>
-
-    /**
-     * Paths to the plugin.xml files or snippets, which may refer to dev.j-a.lsp classes and which have to be updated with the relocated LSP classes.
-     */
-    @get:Input
-    @get:Optional
-    val pluginXmlFiles: SetProperty<String>
 }

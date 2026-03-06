@@ -8,5 +8,5 @@ import org.gradle.api.tasks.TaskProvider
 @Suppress("unused")
 val Project.relocateLanguageServerLibraryTask: TaskProvider<RelocateLanguageServerPackageTask>
     get() {
-        return tasks.named(COMPOSED_JAR_SHADOWED_TASK, RelocateLanguageServerPackageTask::class.java)
+        return tasks.named(LSP_JAR_SHADOWED_TASK, RelocateLanguageServerPackageTask::class.java)
     }

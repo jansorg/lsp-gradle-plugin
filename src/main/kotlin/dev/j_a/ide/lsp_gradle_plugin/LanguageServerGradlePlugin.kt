@@ -3,14 +3,25 @@ package dev.j_a.ide.lsp_gradle_plugin
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExcludeRule
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ResolvedDependency
 import org.gradle.api.artifacts.dsl.DependencyFactory
-import org.jetbrains.intellij.platform.gradle.Constants
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.internal.tasks.JvmConstants
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.jvm.internal.JvmPluginServices
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.jvm.tasks.Jar
+import org.jetbrains.intellij.platform.gradle.Constants.Configurations.Attributes
+import org.jetbrains.intellij.platform.gradle.Constants.Tasks
+import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformExtension
 import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
-import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
-import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 import javax.inject.Inject
 
 /**
@@ -18,7 +29,8 @@ import javax.inject.Inject
  */
 @Suppress("unused")
 class LanguageServerGradlePlugin @Inject constructor(
-    val dependencyFactory: DependencyFactory
+    val dependencyFactory: DependencyFactory,
+    val jvmPluginServices: JvmPluginServices,
 ) : Plugin<Project> {
     /**
      * We need to relocate classes in the JAR used by "runIde", "buildPlugin", etc.
@@ -26,114 +38,142 @@ class LanguageServerGradlePlugin @Inject constructor(
      * relocate the LSP classes and then configure tasks using it to take the relocated JAR instead.
      */
     override fun apply(project: Project) {
+        val isIntelliJPlatformProject = project.plugins.hasPlugin("org.jetbrains.intellij.platform")
+        val isIntelliJSubProject = project.plugins.hasPlugin("org.jetbrains.intellij.platform.module")
         // The IntelliJ Platform Gradle plugin must be applied to the project, we depend on several of its tasks
-        if (!project.plugins.hasPlugin("org.jetbrains.intellij.platform")) {
-            throw IllegalStateException("You must apply org.jetbrains.intellij.platform to use the LSP Gradle plugin")
+        if (!isIntelliJPlatformProject && !isIntelliJSubProject) {
+            throw IllegalStateException("In project ${project.name}, you must apply org.jetbrains.intellij.platform[.module] to use the LSP Gradle plugin.")
         }
 
+        val extension = createLspLibraryExtension(project, isIntelliJSubProject)
+
+        fun createLspDependency(name: String): Provider<Dependency> {
+            return extension.version.zip(extension.platform) { version, platform ->
+                val suffix = if (version.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
+                dependencyFactory.create("dev.j-a.ide", name, "${version.removeSuffix(suffix)}.$platform$suffix")
+            }
+        }
+
+        val lspLibraryConfiguration = createLspLibraryConfiguration(project, createLspDependency("lsp-client"), extension)
+        val lspTestFrameworkConfiguration = createLspTestFrameworkConfiguration(project, createLspDependency("lsp-testframework-client"), extension)
+
+        val isInstrumentingCode = project.extensions.findByType(IntelliJPlatformExtension::class.java)?.instrumentCode ?: project.provider { false }
+        val pluginJarProvider = isInstrumentingCode.flatMap { enabled ->
+            when {
+                isIntelliJPlatformProject -> project.tasks.named(Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
+                else -> when (enabled) {
+                    true -> project.tasks.named(Tasks.INSTRUMENTED_JAR, Jar::class.java)
+                    false -> project.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java)
+                }
+            }
+        }
+
+        val relocatedLspLibraryTask = createRelocateLspLibraryTask(project, extension, pluginJarProvider, lspLibraryConfiguration)
+        lspLibraryConfiguration.outgoing.artifact(relocatedLspLibraryTask)
+    }
+
+    private fun createLspLibraryConfiguration(
+        project: Project,
+        lspClientLibrary: Provider<Dependency>,
+        extension: LanguageServerGradleExtension
+    ): Configuration {
+        return project.configurations.create(LSP_LIBRARY_CONFIGURATION) { config ->
+            config.isTransitive = true
+            config.isCanBeConsumed = true
+            config.isCanBeResolved = true
+
+            config.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
+            config.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
+
+            config.defaultDependencies { dependencies ->
+                dependencies.add(lspClientLibrary.get())
+            }
+
+            config.attributes {
+                it.attribute(Attributes.kotlinJPlatformType, "jvm")
+                it.attribute(Bundling.BUNDLING_ATTRIBUTE, project.objects.named(Bundling::class.java, Bundling.EXTERNAL))
+                it.attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category::class.java, Category.LIBRARY))
+                it.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+
+                it.attribute(
+                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    project.objects.named(TargetJvmEnvironment::class.java, TargetJvmEnvironment.STANDARD_JVM)
+                )
+                it.attributeProvider(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, project.provider {
+                    project.extensions.findByType(JavaPluginExtension::class.java)!!.targetCompatibility.majorVersion.toInt()
+                })
+            }
+            project.afterEvaluate {
+                if (extension.addLibraryDependency.get()) {
+                    project.configurations.getByName(JvmConstants.COMPILE_ONLY_CONFIGURATION_NAME).extendsFrom(config)
+                }
+            }
+        }
+    }
+
+    private fun createLspTestFrameworkConfiguration(
+        project: Project,
+        lspClientTestFramework: Provider<Dependency>,
+        extension: LanguageServerGradleExtension
+    ): Configuration {
+        return project.configurations.create(LSP_LIBRARY_TEST_CONFIGURATION) { config ->
+            config.isTransitive = true
+            config.isCanBeConsumed = true
+            config.isCanBeResolved = true
+
+            config.defaultDependencies { dependencies ->
+                dependencies.add(lspClientTestFramework.get())
+            }
+
+            project.afterEvaluate {
+                if (extension.addTestFrameworkDependency.get()) {
+                    project.configurations.getByName(JvmConstants.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME).extendsFrom(config)
+                }
+            }
+        }
+    }
+
+    private fun createLspLibraryExtension(project: Project, isPluginModule: Boolean): LanguageServerGradleExtension {
         val extension = project.extensions.create("lspLibrary", LanguageServerGradleExtension::class.java)
-        extension.relocate.convention(true)
-        extension.archiveClassifier.convention("shadowed")
+        extension.addLibraryDependency.convention(true)
+        extension.addTestFrameworkDependency.convention(true)
+        extension.bundleLibrary.convention(false)
+        extension.packagePrefix.convention(null)
+        extension.archiveClassifier.convention(null)
         extension.enabledLanguageIds.convention(emptySet())
-        extension.pluginXmlFiles.convention(emptySet())
+        return extension
+    }
 
-        val pluginComposedJarTaskProvider = project.tasks.named(Constants.Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
-        val prepareSandboxTaskProvider = project.tasks.named(Constants.Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java)
-        val prepareJarSearchableOptionsTaskProvider = project.tasks.named(
-            Constants.Tasks.PREPARE_JAR_SEARCHABLE_OPTIONS,
-            PrepareJarSearchableOptionsTask::class.java
-        )
+    private fun createRelocateLspLibraryTask(
+        project: Project,
+        extension: LanguageServerGradleExtension,
+        pluginJarProvider: Provider<out Jar>,
+        lspLibraryConfiguration: Configuration
+    ): TaskProvider<RelocateLanguageServerPackageTask> = project.tasks.register(
+        LSP_JAR_SHADOWED_TASK,
+        RelocateLanguageServerPackageTask::class.java
+    ) { task ->
+        task.dependsOn(pluginJarProvider)
+        task.dependsOn(lspLibraryConfiguration)
 
-        val lspLibraryConfiguration = project.configurations.create("dev.j_a.libraries") { c ->
-            c.isTransitive = false
-            c.exclude(mapOf("group" to "org.jetbrains.kotlin"))
-            c.exclude(mapOf("group" to "com.google.code.gson"))
-        }
+        val moduleName = extension.pluginModuleName.get()
 
-        // Collect all LSP libraries into configuration lspLibraryConfiguration.
-        project.afterEvaluate {
-            it.configureLspLibraryExclusions()
-            it.collectLspLibraryDependencies(lspLibraryConfiguration)
-        }
-        project.subprojects { subProject ->
-            subProject.afterEvaluate {
-                subProject.configureLspLibraryExclusions()
-            }
-        }
-
-        // Add all LSP library dependencies to the composed plugin JAR
-        project.dependencies.add(
-            Constants.Configurations.INTELLIJ_PLATFORM_PLUGIN_COMPOSED_MODULE,
-            project.dependencies.create(lspLibraryConfiguration)
-        )
-
-        val relocateLibraryClassesTask = project.tasks.register(
-            COMPOSED_JAR_SHADOWED_TASK,
-            RelocateLanguageServerPackageTask::class.java
-        ) { task ->
-            task.group = "LSP library"
-            task.dependsOn(pluginComposedJarTaskProvider)
-
-            task.relocateLibraryPackages.set(extension.relocate)
-            task.packagePrefix.set(extension.packagePrefix)
+        task.group = "LSP library"
+        task.description = "Bundle and/or modify the LSP libraries"
+        task.v2Descriptor.set(moduleName.isNotEmpty())
+        task.packagePrefix.set(extension.packagePrefix)
+        task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
+        task.pluginJar.set(pluginJarProvider.flatMap(Jar::getArchiveFile))
+        if (moduleName.isNotEmpty()) {
+            task.archiveBaseName.set(moduleName)
+            task.archiveAppendix.set("")
+            task.archiveVersion.set("")
+            task.archiveClassifier.set("")
+        } else {
             task.archiveClassifier.set(extension.archiveClassifier)
-            task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
-            task.pluginXmlFiles.set(extension.pluginXmlFiles.getOrElse(emptySet()))
-            task.composedPluginJar.set(pluginComposedJarTaskProvider.flatMap(ComposedJarTask::getArchiveFile))
         }
-
-        // update task "prepareSandbox" to use the JAR with the relocated LSP classes
-        prepareSandboxTaskProvider.configure { task ->
-            if (extension.relocate.get()) {
-                task.dependsOn(relocateLibraryClassesTask)
-                task.pluginJar.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
-            }
-        }
-
-        // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
-        prepareJarSearchableOptionsTaskProvider.configure { task ->
-            if (extension.relocate.get()) {
-                task.dependsOn(relocateLibraryClassesTask)
-                task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
-            }
+        if (extension.bundleLibrary.get()) {
+            task.lspLibrary.from(lspLibraryConfiguration)
         }
     }
-
-    /**
-     * Collects all production dependencies of the LSP library into [targetConfiguration].
-     */
-    private fun Project.collectLspLibraryDependencies(targetConfiguration: Configuration) {
-        configurations.getByName("runtimeClasspath") { runtimeClasspath ->
-            runtimeClasspath.resolvedConfiguration.firstLevelModuleDependencies
-                .flatMap { it.allDependencies() }
-                .filter { it.moduleGroup == LSP_GRADLE_MODULE_GROUP }
-                .forEach {
-                    targetConfiguration.dependencies.add(dependencies.create(it.name))
-                }
-        }
-    }
-
-    /**
-     * The LSP libraries use kotlin-stdlib and gson in the same version as the IDE's major version.
-     * These dependencies need to be excluded.
-     */
-    private fun Project.configureLspLibraryExclusions() {
-        configurations.all { configuration ->
-            configuration.dependencies.filterIsInstance<ModuleDependency>().forEach { dependency ->
-                if (dependency.group == LSP_GRADLE_MODULE_GROUP) {
-                    logger.info("Adding exclusions in project ${project.name} for kotlin-stdlib and gson to LSP library dependency $dependency")
-                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
-                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
-                }
-            }
-        }
-    }
-}
-
-private fun ResolvedDependency.allDependencies(target: MutableSet<ResolvedDependency> = mutableSetOf()): Set<ResolvedDependency> {
-    if (this !in target) {
-        target += this
-        children.forEach { it.allDependencies(target) }
-    }
-    return target
 }
