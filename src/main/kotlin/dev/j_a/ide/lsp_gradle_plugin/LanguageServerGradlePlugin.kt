@@ -6,16 +6,20 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ExcludeRule
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.jetbrains.intellij.platform.gradle.Constants
 import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import javax.inject.Inject
 
 /**
  * Gradle plugin which relocates the LSP classes to a different package.
  */
 @Suppress("unused")
-class LanguageServerGradlePlugin : Plugin<Project> {
+class LanguageServerGradlePlugin @Inject constructor(
+    val dependencyFactory: DependencyFactory
+) : Plugin<Project> {
     /**
      * We need to relocate classes in the JAR used by "runIde", "buildPlugin", etc.
      * Task "composedJar" provides the default JAR, we take it,
@@ -27,9 +31,8 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             throw IllegalStateException("You must apply org.jetbrains.intellij.platform to use the LSP Gradle plugin")
         }
 
-        val extension = project.extensions.create("shadowLSP", LanguageServerGradleExtension::class.java)
-        extension.enabled.convention(true)
-        extension.shadowLspLibraries.convention(true)
+        val extension = project.extensions.create("lspLibrary", LanguageServerGradleExtension::class.java)
+        extension.relocate.convention(true)
         extension.archiveClassifier.convention("shadowed")
         extension.enabledLanguageIds.convention(emptySet())
         extension.pluginXmlFiles.convention(emptySet())
@@ -71,7 +74,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
             task.group = "LSP library"
             task.dependsOn(pluginComposedJarTaskProvider)
 
-            task.relocateLibraryPackages.set(extension.shadowLspLibraries)
+            task.relocateLibraryPackages.set(extension.relocate)
             task.packagePrefix.set(extension.packagePrefix)
             task.archiveClassifier.set(extension.archiveClassifier)
             task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
@@ -81,7 +84,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // update task "prepareSandbox" to use the JAR with the relocated LSP classes
         prepareSandboxTaskProvider.configure { task ->
-            if (extension.enabled.get()) {
+            if (extension.relocate.get()) {
                 task.dependsOn(relocateLibraryClassesTask)
                 task.pluginJar.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
             }
@@ -89,7 +92,7 @@ class LanguageServerGradlePlugin : Plugin<Project> {
 
         // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
         prepareJarSearchableOptionsTaskProvider.configure { task ->
-            if (extension.enabled.get()) {
+            if (extension.relocate.get()) {
                 task.dependsOn(relocateLibraryClassesTask)
                 task.composedJarFile.set(relocateLibraryClassesTask.flatMap { it.archiveFile })
             }
