@@ -155,15 +155,15 @@ class LanguageServerGradlePlugin @Inject constructor(
         task.dependsOn(pluginJarProvider)
         task.dependsOn(lspLibraryConfiguration)
 
-        val moduleName = extension.pluginModuleName.get()
+        val moduleName = extension.pluginModuleName.orNull
 
         task.group = "LSP library"
         task.description = "Bundle and/or modify the LSP libraries"
-        task.v2Descriptor.set(moduleName.isNotEmpty())
+        task.v2Descriptor.set(!moduleName.isNullOrEmpty())
         task.packagePrefix.set(extension.packagePrefix)
         task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
         task.pluginJar.set(pluginJarProvider.flatMap(Jar::getArchiveFile))
-        if (moduleName.isNotEmpty()) {
+        if (!moduleName.isNullOrEmpty()) {
             task.archiveBaseName.set(moduleName)
             task.archiveAppendix.set("")
             task.archiveVersion.set("")

@@ -1,3 +1,7 @@
+## 0.6.2
+
+- Handle `null` values of moduleName. 
+
 ## 0.6.1
 
 - Fix test dependency handling of LSP client library.
