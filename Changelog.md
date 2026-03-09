@@ -1,6 +1,6 @@
 ## 0.6.1
 
-- Fix test dependendy handling of LSP client library.
+- Fix test dependency handling of LSP client library.
 
 ## 0.6.0
 
