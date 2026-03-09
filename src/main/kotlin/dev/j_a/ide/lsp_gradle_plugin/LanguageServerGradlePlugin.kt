@@ -141,6 +141,7 @@ class LanguageServerGradlePlugin @Inject constructor(
         extension.packagePrefix.convention(null)
         extension.archiveClassifier.convention(null)
         extension.enabledLanguageIds.convention(emptySet())
+        extension.pluginModuleName.convention(null)
         return extension
     }
 
