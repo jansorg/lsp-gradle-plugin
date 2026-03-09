@@ -6,6 +6,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExcludeRule
 import org.gradle.api.artifacts.dsl.DependencyFactory
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
@@ -32,6 +33,21 @@ class LanguageServerGradlePlugin @Inject constructor(
     val dependencyFactory: DependencyFactory,
     val jvmPluginServices: JvmPluginServices,
 ) : Plugin<Project> {
+    companion object {
+        @JvmStatic
+        fun DependencyFactory.createLspDependency(name: String, libraryVersion: String, platformVersion: Int): Dependency {
+            val suffix = if (libraryVersion.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
+            return create(LSP_GRADLE_MODULE_GROUP, name, "${libraryVersion.removeSuffix(suffix)}.$platformVersion")
+        }
+
+        @JvmStatic
+        fun DependencyHandler.createLspDependency(name: String, libraryVersion: String, platformVersion: Int): Dependency {
+            val suffix = if (libraryVersion.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
+            val version = "${libraryVersion.removeSuffix(suffix)}.$platformVersion"
+            return create("${LSP_GRADLE_MODULE_GROUP}:$name:$version")
+        }
+    }
+
     /**
      * We need to relocate classes in the JAR used by "runIde", "buildPlugin", etc.
      * Task "composedJar" provides the default JAR, we take it,
@@ -49,13 +65,17 @@ class LanguageServerGradlePlugin @Inject constructor(
 
         fun createLspDependency(name: String): Provider<Dependency> {
             return extension.version.zip(extension.platform) { version, platform ->
-                val suffix = if (version.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
-                dependencyFactory.create("dev.j-a.ide", name, "${version.removeSuffix(suffix)}.$platform$suffix")
+                dependencyFactory.createLspDependency(name, version, platform)
             }
         }
 
-        val lspLibraryConfiguration = createLspLibraryConfiguration(project, createLspDependency("lsp-client"), extension)
-        val lspTestFrameworkConfiguration = createLspTestFrameworkConfiguration(project, createLspDependency("lsp-testframework-client"), extension)
+        val lspLibraryConfiguration = createLspLibraryConfiguration(project, createLspDependency(LSP_GRADLE_CLIENT_LIB_NAME), extension)
+
+        project.afterEvaluate {
+            if (extension.addTestFrameworkDependency.get()) {
+                project.dependencies.add(JvmConstants.TEST_IMPLEMENTATION_CONFIGURATION_NAME, createLspDependency(LSP_GRADLE_CLIENT_TEST_LIB_NAME))
+            }
+        }
 
         val isInstrumentingCode = project.extensions.findByType(IntelliJPlatformExtension::class.java)?.instrumentCode ?: project.provider { false }
         val pluginJarProvider = isInstrumentingCode.flatMap { enabled ->
@@ -105,36 +125,14 @@ class LanguageServerGradlePlugin @Inject constructor(
             }
             project.afterEvaluate {
                 if (extension.addLibraryDependency.get()) {
-                    project.configurations.getByName(JvmConstants.COMPILE_ONLY_CONFIGURATION_NAME).extendsFrom(config)
-                }
-            }
-        }
-    }
-
-    private fun createLspTestFrameworkConfiguration(
-        project: Project,
-        lspClientTestFramework: Provider<Dependency>,
-        extension: LanguageServerGradleExtension
-    ): Configuration {
-        return project.configurations.create(LSP_LIBRARY_TEST_CONFIGURATION) { config ->
-            config.isTransitive = true
-            config.isCanBeConsumed = true
-            config.isCanBeResolved = true
-
-            config.defaultDependencies { dependencies ->
-                dependencies.add(lspClientTestFramework.get())
-            }
-
-            project.afterEvaluate {
-                if (extension.addTestFrameworkDependency.get()) {
-                    project.configurations.getByName(JvmConstants.TEST_IMPLEMENTATION_CONFIGURATION_NAME).extendsFrom(config)
+                    project.configurations.getByName(JvmConstants.COMPILE_ONLY_API_CONFIGURATION_NAME).extendsFrom(config)
                 }
             }
         }
     }
 
     private fun createLspLibraryExtension(project: Project, isPluginModule: Boolean): LanguageServerGradleExtension {
-        val extension = project.extensions.create("lspLibrary", LanguageServerGradleExtension::class.java)
+        val extension = project.extensions.create(LSP_LIBRARY_EXTENSION_NAME, LanguageServerGradleExtension::class.java)
         extension.addLibraryDependency.convention(true)
         extension.addTestFrameworkDependency.convention(true)
         extension.bundleLibrary.convention(false)
