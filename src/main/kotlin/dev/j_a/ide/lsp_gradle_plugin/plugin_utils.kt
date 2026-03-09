@@ -15,6 +15,16 @@ val Project.relocateLanguageServerLibraryTask: TaskProvider<RelocateLanguageServ
         return tasks.named(LSP_JAR_SHADOWED_TASK, RelocateLanguageServerPackageTask::class.java)
     }
 
+fun DependencyHandler.lspClientImplementation(libraryVersion: String, platformVersion: Int): ExternalModuleDependency {
+    val dependency = createLspDependency(LSP_GRADLE_CLIENT_LIB_NAME, libraryVersion, platformVersion)
+    return add(JvmConstants.IMPLEMENTATION_CONFIGURATION_NAME, dependency) as ExternalModuleDependency
+}
+
+fun DependencyHandler.lspClientAPI(libraryVersion: String, platformVersion: Int): ExternalModuleDependency {
+    val dependency = createLspDependency(LSP_GRADLE_CLIENT_LIB_NAME, libraryVersion, platformVersion)
+    return add(JvmConstants.API_CONFIGURATION_NAME, dependency) as ExternalModuleDependency
+}
+
 fun DependencyHandler.lspTestFramework(libraryVersion: String, platformVersion: Int): ExternalModuleDependency {
     val dependency = createLspDependency(LSP_GRADLE_CLIENT_TEST_LIB_NAME, libraryVersion, platformVersion)
     return add(JvmConstants.TEST_IMPLEMENTATION_CONFIGURATION_NAME, dependency) as ExternalModuleDependency
