@@ -127,7 +127,7 @@ class LanguageServerGradlePlugin @Inject constructor(
 
             project.afterEvaluate {
                 if (extension.addTestFrameworkDependency.get()) {
-                    project.configurations.getByName(JvmConstants.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME).extendsFrom(config)
+                    project.configurations.getByName(JvmConstants.TEST_IMPLEMENTATION_CONFIGURATION_NAME).extendsFrom(config)
                 }
             }
         }
