@@ -1,3 +1,7 @@
+## 0.6.3
+
+- Bundling of LSP library and snippet expansion for V1 modules
+
 ## 0.6.2
 
 - Handle `null` values of moduleName. 

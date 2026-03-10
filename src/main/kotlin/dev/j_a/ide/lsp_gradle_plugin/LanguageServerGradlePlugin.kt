@@ -5,6 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExcludeRule
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
@@ -23,6 +24,8 @@ import org.jetbrains.intellij.platform.gradle.Constants.Configurations.Attribute
 import org.jetbrains.intellij.platform.gradle.Constants.Tasks
 import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformExtension
 import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 import javax.inject.Inject
 
 /**
@@ -90,6 +93,18 @@ class LanguageServerGradlePlugin @Inject constructor(
 
         val relocatedLspLibraryTask = createRelocateLspLibraryTask(project, extension, pluginJarProvider, lspLibraryConfiguration)
         lspLibraryConfiguration.outgoing.artifact(relocatedLspLibraryTask)
+
+        // update task "prepareSandbox" to use the JAR with the relocated LSP classes
+        project.tasks.named(Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java).configure { task ->
+            task.dependsOn(relocatedLspLibraryTask)
+            task.pluginJar.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
+        }
+
+        // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
+        project.tasks.named(Tasks.PREPARE_JAR_SEARCHABLE_OPTIONS, PrepareJarSearchableOptionsTask::class.java).configure { task ->
+            task.dependsOn(relocatedLspLibraryTask)
+            task.composedJarFile.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
+        }
     }
 
     private fun createLspLibraryConfiguration(
@@ -137,7 +152,7 @@ class LanguageServerGradlePlugin @Inject constructor(
         extension.addTestFrameworkDependency.convention(true)
         extension.bundleLibrary.convention(false)
         extension.packagePrefix.convention(null)
-        extension.archiveClassifier.convention(null)
+        extension.archiveClassifier.convention("lsp")
         extension.enabledLanguageIds.convention(emptySet())
         extension.pluginModuleName.convention(null)
         return extension
@@ -173,6 +188,22 @@ class LanguageServerGradlePlugin @Inject constructor(
         }
         if (extension.bundleLibrary.get()) {
             task.lspLibrary.from(lspLibraryConfiguration)
+        }
+    }
+
+    /**
+     * The LSP libraries use kotlin-stdlib and gson in the same version as the IDE's major version.
+     * These dependencies need to be excluded.
+     */
+    private fun Project.configureLspLibraryExclusions() {
+        configurations.all { configuration ->
+            configuration.dependencies.filterIsInstance<ModuleDependency>().forEach { dependency ->
+                if (dependency.group == LSP_GRADLE_MODULE_GROUP) {
+                    logger.info("Adding exclusions in project ${project.name} for kotlin-stdlib and gson to LSP library dependency $dependency")
+                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "org.jetbrains.kotlin", ExcludeRule.MODULE_KEY to "kotlin-stdlib"))
+                    dependency.exclude(mapOf(ExcludeRule.GROUP_KEY to "com.google.code.gson", ExcludeRule.MODULE_KEY to "gson"))
+                }
+            }
         }
     }
 }
