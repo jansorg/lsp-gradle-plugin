@@ -62,24 +62,24 @@ internal class UpdatePluginXmlTransformer(
     }
 
     override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
-        // LSP entry file -> expanded LSP snippet
-        val snippetFileToContent = filePathToTransformedContent
-            .filter { (filePath, _) -> filePath.isLspSnippetXmlFile }
-            .mapValues { expandXmlSnippet(it.value) }
+        // In a V1 descriptor, append the expanded snippet XML files to the main LSP include XML file
+        if (!isV2Descriptor) {
+            xmlMainToSnippetPath.forEach { (mainFilePath, snippetFilePath) ->
+                val mainFileContent = filePathToTransformedContent[mainFilePath]
+                val snippetFileContent = filePathToTransformedContent[snippetFilePath]
+                if (mainFileContent != null && snippetFileContent != null) {
+                    logger.info("Saving $mainFilePath with expanded XML snippets...")
+                    val expandedSnippetXML = expandXmlSnippet(snippetFileContent)
+                    val updatedMainFileContent = mainFileContent.replace("</idea-plugin>", "$expandedSnippetXML\n</idea-plugin>").trim()
 
-        val entryFileToExpandedContent = filePathToTransformedContent
-            .filter { (filePath, _) -> filePath.isLspEntryXmlFile }
-            .mapValues { (filePath, content) ->
-                logger.info("Expanding LSP main file $filePath...")
-                val snippetXml = snippetFileToContent[xmlMainToSnippetPath[filePath]]
-                if (snippetXml.isNullOrEmpty()) {
-                    logger.warn("No snippet file found for $filePath")
-                    content
-                } else {
-                    content.replace("</idea-plugin>", "$snippetXml\n</idea-plugin>").trim()
+                    os.putNextEntry(ZipEntry(mainFilePath))
+                    os.write(updatedMainFileContent.trim().toByteArray(Charsets.UTF_8))
+                    os.closeEntry()
                 }
             }
+        }
 
+        // Transform plugin.xml files of the plugin
         filePathToTransformedContent
             .filter { (filePath, _) -> !filePath.isLspEntryXmlFile && !filePath.isLspSnippetXmlFile }
             .forEach { (filePath, transformedContent) ->
@@ -104,11 +104,16 @@ internal class UpdatePluginXmlTransformer(
             val referencedFilePath = match.groups[1]!!.value
             logger.debug("Inlining xi:include to $referencedFilePath...")
 
-            val xmlSnippetContent = filePathToTransformedContent[referencedFilePath.removePrefix("/")]
+            val filePathReference = referencedFilePath.removePrefix("/")
+            val xmlSnippetContent = filePathToTransformedContent[filePathReference]
             if (xmlSnippetContent.isNullOrEmpty()) {
                 logger.warn("xi:include reference $referencedFilePath not found in file $filePath")
             } else {
-                updated = updated.substring(0, match.range.first) + xmlSnippetContent.trimPluginXmlTag() + updated.substring(match.range.last + 1)
+                var snippetFileContent = xmlSnippetContent.trimPluginXmlTag()
+                if (filePathReference.isLspSnippetXmlFile) {
+                    snippetFileContent = expandXmlSnippet(snippetFileContent)
+                }
+                updated = updated.substring(0, match.range.first) + snippetFileContent + updated.substring(match.range.last + 1)
             }
         }
         return updated.replace(" xmlns:xi=\"http://www.w3.org/2001/XInclude\"", "")
