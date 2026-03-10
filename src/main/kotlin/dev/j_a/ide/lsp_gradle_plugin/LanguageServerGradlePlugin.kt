@@ -39,15 +39,19 @@ class LanguageServerGradlePlugin @Inject constructor(
     companion object {
         @JvmStatic
         fun DependencyFactory.createLspDependency(name: String, libraryVersion: String, platformVersion: Int): Dependency {
-            val suffix = if (libraryVersion.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
-            return create(LSP_GRADLE_MODULE_GROUP, name, "${libraryVersion.removeSuffix(suffix)}.$platformVersion")
+            val version = libraryVersion(libraryVersion, platformVersion)
+            return create(LSP_GRADLE_MODULE_GROUP, name, version)
         }
 
         @JvmStatic
         fun DependencyHandler.createLspDependency(name: String, libraryVersion: String, platformVersion: Int): Dependency {
-            val suffix = if (libraryVersion.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
-            val version = "${libraryVersion.removeSuffix(suffix)}.$platformVersion"
+            val version = libraryVersion(libraryVersion, platformVersion)
             return create("${LSP_GRADLE_MODULE_GROUP}:$name:$version")
+        }
+
+        private fun libraryVersion(libraryVersion: String, platformVersion: Int): String {
+            val suffix = if (libraryVersion.endsWith("-SNAPSHOT")) "-SNAPSHOT" else ""
+            return "${libraryVersion.removeSuffix(suffix)}.$platformVersion$suffix"
         }
     }
 

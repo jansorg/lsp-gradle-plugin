@@ -1,3 +1,7 @@
+## 0.6.4
+
+- Fix snapshot version handling.
+
 ## 0.6.3
 
 - Bundling of LSP library and snippet expansion for V1 modules
