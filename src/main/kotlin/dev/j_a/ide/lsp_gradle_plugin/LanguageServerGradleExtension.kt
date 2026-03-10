@@ -19,6 +19,9 @@ interface LanguageServerGradleExtension {
     val version: Property<String>
 
     @get:Input
+    val pluginId: Property<String>
+
+    @get:Input
     @get:Optional
     val addLibraryDependency: Property<Boolean>
 

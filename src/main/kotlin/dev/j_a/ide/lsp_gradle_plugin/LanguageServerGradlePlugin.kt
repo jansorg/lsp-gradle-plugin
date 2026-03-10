@@ -178,9 +178,10 @@ class LanguageServerGradlePlugin @Inject constructor(
 
         task.group = "LSP library"
         task.description = "Bundle and/or modify the LSP libraries"
+        task.pluginId.set(extension.pluginId)
         task.v2Descriptor.set(!moduleName.isNullOrEmpty())
         task.packagePrefix.set(extension.packagePrefix)
-        task.enabledLanguageIds.set(extension.enabledLanguageIds.getOrElse(emptySet()))
+        task.enabledLanguageIds.set(extension.enabledLanguageIds.orElse(emptySet()))
         task.pluginJar.set(pluginJarProvider.flatMap(Jar::getArchiveFile))
         if (!moduleName.isNullOrEmpty()) {
             task.archiveBaseName.set(moduleName)

@@ -13,6 +13,9 @@ import org.gradle.api.tasks.*
 @CacheableTask
 abstract class RelocateLanguageServerPackageTask : ShadowJar() {
     @get:Input
+    abstract val pluginId: Property<String>
+
+    @get:Input
     abstract val v2Descriptor: Property<Boolean>
 
     @get:InputFile
@@ -47,7 +50,7 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
         }
 
         val enabledPsiLanguages = enabledLanguageIds.getOrElse(emptySet())
-        transform(UpdatePluginXmlTransformer(v2Descriptor.get(), enabledPsiLanguages, logger))
+        transform(UpdatePluginXmlTransformer(pluginId.get(), v2Descriptor.get(), enabledPsiLanguages, logger))
 
         from(pluginJar.map { jarFile -> archiveOperations.zipTree(jarFile) })
         if (!lspLibrary.isEmpty) {

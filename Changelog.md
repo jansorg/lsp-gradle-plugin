@@ -1,3 +1,7 @@
+## 0.6.5
+
+- Fix `$PLUGIN_ID$` in XML snippets.
+
 ## 0.6.4
 
 - Fix snapshot version handling.

@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets
  * Transformer, which updates the LSP library package to the relocated package in XML files given by name.
  */
 internal class UpdatePluginXmlTransformer(
+    val pluginId: String,
     val isV2Descriptor: Boolean,
     val enabledPsiLanguages: Set<String>,
     val logger: Logger
@@ -136,7 +137,11 @@ internal class UpdatePluginXmlTransformer(
     private fun expandXmlSnippet(xmlContent: String): String {
         return buildString {
             for (languageId in enabledPsiLanguages) {
-                append(xmlContent.replace("\$LANGUAGE_ID$", languageId).replaceIndent("    "))
+                val updatedContent = xmlContent
+                    .replace("\$PLUGIN_ID$", pluginId)
+                    .replace("\$LANGUAGE_ID$", languageId)
+                    .replaceIndent("    ")
+                append(updatedContent)
                 append("\n")
             }
         }
