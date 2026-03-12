@@ -1,3 +1,7 @@
+## 0.6.6
+
+- Fix use of unavailable searchableJar task.
+
 ## 0.6.5
 
 - Fix `$PLUGIN_ID$` in XML snippets.

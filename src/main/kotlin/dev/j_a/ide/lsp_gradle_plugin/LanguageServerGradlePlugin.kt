@@ -57,8 +57,7 @@ class LanguageServerGradlePlugin @Inject constructor(
 
     /**
      * We need to relocate classes in the JAR used by "runIde", "buildPlugin", etc.
-     * Task "composedJar" provides the default JAR, we take it,
-     * relocate the LSP classes and then configure tasks using it to take the relocated JAR instead.
+     * Task "composedJar" provides the default JAR, we take it, relocate the LSP classes and then configure tasks using it to take the relocated JAR instead.
      */
     override fun apply(project: Project) {
         val isIntelliJPlatformProject = project.plugins.hasPlugin("org.jetbrains.intellij.platform")
@@ -100,14 +99,17 @@ class LanguageServerGradlePlugin @Inject constructor(
 
         // update task "prepareSandbox" to use the JAR with the relocated LSP classes
         project.tasks.named(Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java).configure { task ->
+            task.dependsOn(pluginJarProvider)
             task.dependsOn(relocatedLspLibraryTask)
             task.pluginJar.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
         }
 
         // update task "prepareJarSearchableOptions" to use the JAR with the relocated LSP classes
-        project.tasks.named(Tasks.PREPARE_JAR_SEARCHABLE_OPTIONS, PrepareJarSearchableOptionsTask::class.java).configure { task ->
-            task.dependsOn(relocatedLspLibraryTask)
-            task.composedJarFile.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
+        if (isIntelliJPlatformProject) {
+            project.tasks.named(Tasks.PREPARE_JAR_SEARCHABLE_OPTIONS, PrepareJarSearchableOptionsTask::class.java).configure { task ->
+                task.dependsOn(relocatedLspLibraryTask)
+                task.composedJarFile.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
+            }
         }
     }
 
