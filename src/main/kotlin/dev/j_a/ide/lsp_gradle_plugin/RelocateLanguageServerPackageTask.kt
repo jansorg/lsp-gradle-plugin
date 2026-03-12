@@ -38,8 +38,8 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
     override fun copy() {
         // Change the target package to be inside your own plugin's package
         // For v2 descriptors, it must be inside the package specified by the 'package' attribute of <idea-plugin>
-        val packagePrefix = packagePrefix.get()
-        if (packagePrefix.isNotEmpty()) {
+        val packagePrefix = packagePrefix.orNull
+        if (!packagePrefix.isNullOrEmpty()) {
             if (packagePrefix == LSP_PACKAGE_PREFIX) {
                 throw IllegalArgumentException("packagePrefix must be set to a non-empty value different from $LSP_PACKAGE_PREFIX")
             }

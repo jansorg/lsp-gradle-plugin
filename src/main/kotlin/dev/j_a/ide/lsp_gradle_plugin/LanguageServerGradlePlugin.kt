@@ -14,7 +14,6 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.internal.tasks.JvmConstants
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.jvm.internal.JvmPluginServices
 import org.gradle.api.provider.Provider
@@ -22,7 +21,6 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.intellij.platform.gradle.Constants.Configurations.Attributes
 import org.jetbrains.intellij.platform.gradle.Constants.Tasks
-import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformExtension
 import org.jetbrains.intellij.platform.gradle.tasks.ComposedJarTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareJarSearchableOptionsTask
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
@@ -83,23 +81,12 @@ class LanguageServerGradlePlugin @Inject constructor(
             }
         }
 
-        val isInstrumentingCode = project.extensions.findByType(IntelliJPlatformExtension::class.java)?.instrumentCode ?: project.provider { false }
-        val pluginJarProvider = isInstrumentingCode.flatMap { enabled ->
-            when {
-                isIntelliJPlatformProject -> project.tasks.named(Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
-                else -> when (enabled) {
-                    true -> project.tasks.named(Tasks.INSTRUMENTED_JAR, Jar::class.java)
-                    false -> project.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java)
-                }
-            }
-        }
-
-        val relocatedLspLibraryTask = createRelocateLspLibraryTask(project, extension, pluginJarProvider, lspLibraryConfiguration)
+        val composedJarTask = project.tasks.named(Tasks.COMPOSED_JAR, ComposedJarTask::class.java)
+        val relocatedLspLibraryTask = createRelocateLspLibraryTask(project, extension, composedJarTask, lspLibraryConfiguration)
         lspLibraryConfiguration.outgoing.artifact(relocatedLspLibraryTask)
 
-        // update task "prepareSandbox" to use the JAR with the relocated LSP classes
-        project.tasks.named(Tasks.PREPARE_SANDBOX, PrepareSandboxTask::class.java).configure { task ->
-            task.dependsOn(pluginJarProvider)
+        // update sandbox tasks to use the JAR with the relocated LSP classes
+        project.tasks.withType(PrepareSandboxTask::class.java).configureEach { task ->
             task.dependsOn(relocatedLspLibraryTask)
             task.pluginJar.set(relocatedLspLibraryTask.flatMap { it.archiveFile })
         }
