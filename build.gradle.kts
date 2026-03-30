@@ -14,9 +14,9 @@ plugins {
     kotlin("jvm") version "2.1.0"
 
     // https://plugins.gradle.org/plugin/com.gradle.plugin-publish
-    id("com.gradle.plugin-publish") version "2.0.0"
+    id("com.gradle.plugin-publish") version "2.1.1"
     // https://github.com/GradleUp/shadow
-    id("com.gradleup.shadow") version "9.3.2"
+    id("com.gradleup.shadow") version "9.4.1"
 }
 
 repositories {

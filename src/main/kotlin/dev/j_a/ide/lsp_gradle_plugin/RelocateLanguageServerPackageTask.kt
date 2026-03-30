@@ -61,4 +61,11 @@ abstract class RelocateLanguageServerPackageTask : ShadowJar() {
         logger.info("Relocating LSP and DAP libraries in ${pluginJar.get()} into package $packagePrefix, PSI languages: $enabledPsiLanguages")
         super.copy()
     }
+
+    companion object {
+        @Suppress("unused")
+        @get:JvmSynthetic
+        inline val TaskContainer.relocateLspTask: TaskProvider<RelocateLanguageServerPackageTask>
+            get() = named(LSP_JAR_SHADOWED_TASK, RelocateLanguageServerPackageTask::class.java)
+    }
 }
