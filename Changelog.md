@@ -1,3 +1,7 @@
+## 0.7.0
+
+- Update dependencies
+
 ## 0.6.6
 
 - Fix use of unavailable searchableJar task.
