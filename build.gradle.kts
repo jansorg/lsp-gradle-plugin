@@ -11,7 +11,7 @@ version = "$pluginVersion$pluginVersionSuffix"
 
 plugins {
     `java-gradle-plugin`
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.2.21"
 
     // https://plugins.gradle.org/plugin/com.gradle.plugin-publish
     id("com.gradle.plugin-publish") version "2.1.1"
