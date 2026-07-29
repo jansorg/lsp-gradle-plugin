@@ -19,9 +19,14 @@ internal class UpdatePluginXmlTransformer(
     val logger: Logger
 ) : ResourceTransformer {
     // XML plugin.xml to snippet file for per-language feature snippets
-    private val xmlMainToSnippetPath = mapOf(
-        "META-INF/plugin-lsp-client.xml" to "META-INF/plugin-lsp-client-snippets.xml",
-        "META-INF/plugin-dap-client.xml" to "META-INF/plugin-dap-client-snippets.xml",
+    private val xmlMainToSnippetPaths = mapOf(
+        "META-INF/plugin-lsp-client.xml" to listOf(
+            "META-INF/plugin-lsp-client-snippets-plugin.xml",
+            "META-INF/plugin-lsp-client-snippets.xml"
+        ),
+        "META-INF/plugin-dap-client.xml" to listOf(
+            "META-INF/plugin-dap-client-snippets.xml"
+        ),
     )
 
     // Transformed plugin.xml files
@@ -64,12 +69,25 @@ internal class UpdatePluginXmlTransformer(
 
     override fun modifyOutputStream(os: ZipOutputStream, preserveFileTimestamps: Boolean) {
         // Append the snippets to the transformed content of the main XML files
-        xmlMainToSnippetPath.forEach { (mainFilePath, snippetFilePath) ->
-            val mainFileContent = filePathToTransformedContent[mainFilePath]
-            val snippetFileContent = filePathToTransformedContent[snippetFilePath]
-            if (mainFileContent != null && snippetFileContent != null) {
-                val expandedSnippetXML = expandXmlSnippet(snippetFileContent)
-                val updatedMainFileContent = mainFileContent.replace("</idea-plugin>", "$expandedSnippetXML\n</idea-plugin>").trim()
+        xmlMainToSnippetPaths.forEach { (mainFilePath, snippetFilePaths) ->
+            val mainFileContent = filePathToTransformedContent[mainFilePath] ?: return@forEach
+
+            // Deduplicate the expanded snippets; some may only reference the plugin ID
+            val expandedXmlSnippets = mutableSetOf<String>()
+
+            for (snippetFilePath in snippetFilePaths) {
+                val snippetFileContent = filePathToTransformedContent[snippetFilePath] ?: return@forEach
+                enabledPsiLanguages.mapTo(expandedXmlSnippets) { languageId ->
+                    snippetFileContent
+                        .replace($$"$PLUGIN_ID$", pluginId)
+                        .replace($$"$LANGUAGE_ID$", languageId)
+                        .replaceIndent("    ")
+                }
+            }
+
+            if (expandedXmlSnippets.isNotEmpty()) {
+                val joinedSnippetsXml = expandedXmlSnippets.joinToString("\n")
+                val updatedMainFileContent = mainFileContent.replace("</idea-plugin>", "$joinedSnippetsXml\n</idea-plugin>").trim()
                 filePathToTransformedContent[mainFilePath] = updatedMainFileContent
             }
         }
@@ -116,24 +134,11 @@ internal class UpdatePluginXmlTransformer(
 
     private val String.isLspEntryXmlFile: Boolean
         get() {
-            return xmlMainToSnippetPath.containsKey(this)
+            return xmlMainToSnippetPaths.containsKey(this)
         }
 
     private val String.isLspSnippetXmlFile: Boolean
         get() {
-            return xmlMainToSnippetPath.containsValue(this)
+            return xmlMainToSnippetPaths.values.any { it.contains(this) }
         }
-
-    private fun expandXmlSnippet(xmlContent: String): String {
-        return buildString {
-            for (languageId in enabledPsiLanguages) {
-                val updatedContent = xmlContent
-                    .replace("\$PLUGIN_ID$", pluginId)
-                    .replace("\$LANGUAGE_ID$", languageId)
-                    .replaceIndent("    ")
-                append(updatedContent)
-                append("\n")
-            }
-        }
-    }
 }

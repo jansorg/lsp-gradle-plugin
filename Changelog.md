@@ -1,3 +1,7 @@
+## 0.8.1
+
+- Deduplicate XML snippets
+
 ## 0.7.0
 
 - Update dependencies
