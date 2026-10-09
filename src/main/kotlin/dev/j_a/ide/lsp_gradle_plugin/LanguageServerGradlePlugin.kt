@@ -67,6 +67,9 @@ class LanguageServerGradlePlugin @Inject constructor(
 
         val extension = createLspLibraryExtension(project, isIntelliJSubProject)
 
+        // fixes the dependencies of the published LSP library 0.6.35
+        project.dependencies.components.all(LspLibraryElementsRule::class.java)
+
         fun createLspDependency(name: String): Provider<Dependency> {
             return extension.version.zip(extension.platform) { version, platform ->
                 dependencyFactory.createLspDependency(name, version, platform)
