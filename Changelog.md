@@ -1,3 +1,8 @@
+## 0.8.2
+
+- Stop bundling copies of Kotlin, the IntelliJ Platform Gradle plugin and other libraries. Only the relocated Shadow plugin is bundled now.
+- Require Gradle 9.0 or later.
+
 ## 0.8.1
 
 - Deduplicate XML snippets

@@ -1,4 +1,6 @@
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val javaVersion = 17
@@ -31,12 +33,34 @@ publishing {
 }
 
 dependencies {
-    api(rootProject.libs.intellij.platform)
+    // Gradle provides the Kotlin stdlib at runtime, it must not be bundled or exposed.
+    // The automatic stdlib dependency is disabled in gradle.properties.
+    compileOnly(kotlin("stdlib"))
+
+    // Users must apply the IntelliJ Platform Gradle plugin themselves, we only compile against its API.
+    compileOnly(rootProject.libs.intellij.platform)
+
     // For unknown reasons, class org.apache.tools.zip.ZipOutputStream is used in an interface of the Shadow plugin,
     // but it's unavailable unless we add this dependency (same as the dependency in the Shadow plugin itself).
-    api(libs.apache.ant)
+    // At runtime, it's provided by the dependencies of the Shadow plugin.
+    compileOnly(libs.apache.ant)
 
+    // Bundled and relocated into our jar, see shadowJar below
     implementation(rootProject.libs.gradleup.shadow)
+}
+
+// The relocated Shadow plugin is bundled, but its own dependencies are not.
+// They're declared as regular runtime dependencies of the published plugin instead.
+configurations.shadow {
+    withDependencies {
+        val shadowPlugin = configurations.detachedConfiguration(project.dependencies.create(libs.gradleup.shadow.get()))
+        shadowPlugin.incoming.resolutionResult.root.dependencies
+            .filterIsInstance<ResolvedDependencyResult>()
+            .flatMap { it.selected.dependencies }
+            .filterIsInstance<ResolvedDependencyResult>()
+            .mapNotNull { it.selected.moduleVersion }
+            .forEach { add(project.dependencies.create("${it.group}:${it.name}:${it.version}")) }
+    }
 }
 
 gradlePlugin {
@@ -56,6 +80,12 @@ gradlePlugin {
 
 tasks.shadowJar {
     archiveClassifier = ""
+    dependencies {
+        include(dependency(libs.gradleup.shadow))
+    }
+    // don't expose the plugin IDs of the bundled Shadow plugin
+    exclude("META-INF/gradle-plugins/com.gradleup.shadow.properties")
+    exclude("META-INF/gradle-plugins/com.github.johnrengelman.shadow.properties")
     relocate("com.github.jengelman.gradle", "dev.j_a.ide.lsp_gradle_plugin.shadow")
 }
 
@@ -71,6 +101,8 @@ tasks {
     withType<KotlinCompile> {
         compilerOptions {
             jvmTarget = JvmTarget.fromTarget("$javaVersion")
+            // must be compatible with the Kotlin stdlib embedded in the oldest supported Gradle version (9.0 uses Kotlin 2.2)
+            apiVersion = KotlinVersion.KOTLIN_2_2
         }
     }
 }
