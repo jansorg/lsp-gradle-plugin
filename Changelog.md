@@ -1,3 +1,7 @@
+## Next
+
+- Fix the resolution of the LSP library 0.6.35, whose published dependencies request the unavailable library elements `composed-jar`.
+
 ## 0.8.3
 
 - Declare compatibility with the Gradle configuration cache.
