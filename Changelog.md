@@ -1,3 +1,7 @@
+## 0.8.3
+
+- Declare compatibility with the Gradle configuration cache.
+
 ## 0.8.2
 
 - Stop bundling copies of Kotlin, the IntelliJ Platform Gradle plugin and other libraries. Only the relocated Shadow plugin is bundled now.

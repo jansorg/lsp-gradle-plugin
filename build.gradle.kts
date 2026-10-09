@@ -1,4 +1,5 @@
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -74,6 +75,11 @@ gradlePlugin {
             description = "Gradle plugin to help relocate the LSP library for JetBrains plugins."
             implementationClass = "dev.j_a.ide.lsp_gradle_plugin.LanguageServerGradlePlugin"
             tags.addAll("lsp", "jetbrains")
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }
